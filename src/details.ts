@@ -3,6 +3,7 @@ import Loader from "./loader";
 import Unity from "./unity";
 import type { Article } from "./types";
 import DOMPurify from "dompurify";
+import Translator from './translator';
 
 const contentsInner = document.getElementById("contentsInner")!;
 const label = document.getElementById("label")!;
@@ -29,14 +30,51 @@ async function getArticle(): Promise<Article> {
 async function init() {
     Unity.call("showBackButton");
 
+    // Clean up mock translations if worker is unreachable (dev convenience)
+    try { await Translator.cleanupMockEntries().catch(()=>{}); } catch(e) {}
+
     const article = await getArticle();
 
     label.style.backgroundColor = article.label_color;
     label.innerText = article.label_name_en;
 
     postTime.innerText = Utils.formatTimestamp(article.post_at);
-    title.innerText = article.title_english;
+    // Prefer translated content when available, otherwise fall back to English.
+    const targetLang = 'id';
+    let titleText = article.title_english;
     let messageHTML = article.message_english;
+
+    try {
+        const key = `translation_${article.announce_id}_${targetLang}`;
+        const stored = ((): string | null => { try { return localStorage.getItem(key); } catch(e) { return null; } })();
+        if (stored) {
+            try {
+                const parsed = JSON.parse(stored);
+                if (parsed.title) titleText = parsed.title;
+                if (parsed.message) messageHTML = parsed.message;
+            } catch (e) {
+                // malformed stored value — fall through to attempt on-demand translation
+            }
+        }
+
+        if (!stored) {
+            // attempt on-demand translation via Cloudflare Worker endpoint.
+            try {
+                const payload = await Translator.fetchById(article.announce_id, targetLang).catch(()=>null);
+                if (payload && (payload.title || payload.message)) {
+                    titleText = payload.title || titleText;
+                    messageHTML = payload.message || messageHTML;
+                    try { localStorage.setItem(key, JSON.stringify(payload)); } catch (e) { /* ignore */ }
+                }
+            } catch (e) {
+                // ignore and use English
+            }
+        }
+    } catch (e) {
+        // ignore any storage/translation errors
+    }
+
+    title.innerText = titleText;
     if (article.image && !messageHTML.startsWith("<figure><img")) {
         messageHTML = `<figure><img src="${article.image}"></figure>${messageHTML}`;
     }

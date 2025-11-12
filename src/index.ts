@@ -2,6 +2,7 @@ import Unity from "./unity";
 import Utils from "./utils";
 import Loader from "./loader";
 import type { Article } from "./types";
+import Translator from "./translator";
 
 const allTabBtn = document.getElementById("allTabBtn")!;
 const gameTabBtn = document.getElementById("gameTabBtn")!;
@@ -46,6 +47,8 @@ function appendNewsEntry(article: Article) {
     entry.role = "button";
     entry.href = import.meta.env.BASE_URL + "details/?id=" + article.announce_id;
     entry.className = "news-entry";
+    // mark element with announce id so preloader can update it when translation arrives
+    entry.dataset.announceId = String(article.announce_id);
     entry.addEventListener("click", () => {
         Unity.call("snd_sfx_UI_Tap_01");
         // Store in session storage so the details page won't have to load it
@@ -71,7 +74,26 @@ function appendNewsEntry(article: Article) {
 
     const title = document.createElement("h1");
     title.className = "news-title";
-    title.innerText = article.title_english;
+    // Use Indonesian ('id') translation if available in localStorage
+    try {
+        const targetLang = 'id';
+        const key = `translation_${article.announce_id}_${targetLang}`;
+        const stored = ((): string | null => {
+            try { return localStorage.getItem(key); } catch(e) { return null; }
+        })();
+        if (stored) {
+            try {
+                const parsed = JSON.parse(stored);
+                title.innerText = parsed.title || article.title_english;
+            } catch (e) {
+                title.innerText = article.title_english;
+            }
+        } else {
+            title.innerText = article.title_english;
+        }
+    } catch (e) {
+        title.innerText = article.title_english;
+    }
     entry.appendChild(title)
 
     if (article.image) {
@@ -100,6 +122,36 @@ function appendMoreBtn() {
     newsEntries.appendChild(moreBtn);
 }
 
+/** Preload translations for a list of articles (non-blocking). */
+function preloadTranslations(articles: Article[], targetLang = 'id') {
+    try {
+        const toPreload = articles.slice(0, POST_COUNT);
+        for (const article of toPreload) {
+            const key = `translation_${article.announce_id}_${targetLang}`;
+            const has = ((): boolean => { try { return !!localStorage.getItem(key); } catch(e) { return false; } })();
+            if (!has) {
+                Translator.fetchById(article.announce_id, targetLang)
+                .then((payload: any) => {
+                    if (payload && (payload.title || payload.message)) {
+                        try { localStorage.setItem(key, JSON.stringify(payload)); } catch(e) { /* quota or disabled */ }
+                        // update rendered title if the entry is already in the DOM
+                        try {
+                            const selector = `a.news-entry[data-announce-id="${article.announce_id}"] .news-title`;
+                            const titleEl = document.querySelector(selector) as HTMLElement | null;
+                            if (titleEl && payload.title) titleEl.innerText = payload.title;
+                        } catch (e) { /* ignore DOM update errors */ }
+                    }
+                })
+                .catch(() => {
+                    // worker endpoint unavailable or failed - skip preloading
+                });
+            }
+        }
+    } catch (e) {
+        // ignore translation preloading errors
+    }
+}
+
 const POST_COUNT = 20;
 let offset = 0;
 let loading = false;
@@ -126,6 +178,7 @@ async function loadNews(loadMore = false) {
     Loader.show();
     try {
         const res = await fetch(endpoint);
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
         const data: Article[] = await res.json();
 
         if (!loadMore) {
@@ -137,6 +190,9 @@ async function loadNews(loadMore = false) {
         }
         appendMoreBtn();
 
+        // Preload translations (non-blocking) if user language isn't English.
+        preloadTranslations(data, 'id');
+
         let state: State | null = history.state;
         updateState({
             scrollTop: newsEntries.scrollTop,
@@ -146,13 +202,14 @@ async function loadNews(loadMore = false) {
         });
 
         newsEntries.classList.add("show");
+
+        // Only advance offset after a successful load
+        offset += POST_COUNT;
     }
     finally {
         Loader.hide();
         loading = false;
     }
-
-    offset += POST_COUNT;
 }
 
 interface State {
@@ -174,6 +231,8 @@ function restoreState() {
         appendNewsEntry(article);
     }
     appendMoreBtn();
+    // Preload translations for restored entries (dev & normal flow)
+    preloadTranslations(state.data, 'id');
     newsEntries.scrollTo(0, state.scrollTop);
     newsEntries.classList.add("show");
 
@@ -185,9 +244,12 @@ function restoreState() {
     return true;
 }
 
-function init() {
+async function init() {
+    // Clean up any dev/mock translations if the worker is not reachable.
+    try { await Translator.cleanupMockEntries().catch(()=>{}); } catch(e) {}
+
     if (!restoreState()) {
-        loadNews();
+        await loadNews();
         updateTabBtns();
     }
 
