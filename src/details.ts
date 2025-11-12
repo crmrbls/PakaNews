@@ -23,8 +23,8 @@ async function getArticle(): Promise<Article> {
         if (article.announce_id == id) return article;
     }
 
-    const res = await fetch("https://umapyoi.net/api/v1/news/" + id);
-    return await res.json();
+    // Prefer worker proxy for article retrieval; fall back to official API.
+    return await Translator.fetchArticle(id);
 }
 
 async function init() {

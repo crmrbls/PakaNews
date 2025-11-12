@@ -1,6 +1,8 @@
 // Translator client that calls an external translation endpoint (Cloudflare Worker).
 // The worker base URL should be provided either via Vite env `VITE_TRANSLATOR_WORKER_URL`
 // or stored in localStorage under `TRANSLATE_WORKER_URL`.
+import type { Article } from "./types";
+import { mapIndexItemToArticle, mapDetailToArticle } from './adapters/umamusume';
 
 class TranslatorClient {
     private getBaseUrl(): string | null {
@@ -37,6 +39,63 @@ class TranslatorClient {
             return Promise.reject(`HTTP ${res.status} ${res.statusText} ${txt}`);
         }
         return res.json();
+    }
+
+    /**
+     * Fetch list of articles. Prefer worker endpoint when configured, fall back to official API.
+     * count: items per page, offset: zero-based offset used by app, tab: 0=All,1=Game
+     */
+    public async fetchList(count: number, offset: number, tab: number): Promise<Article[]> {
+        const page = Math.floor(offset / count) + 1;
+        const label = tab === 1 ? 1 : 0; // announce_label mapping
+        const base = this.getBaseUrl();
+
+        if (base) {
+            const url = `${base}/api/list?per_page=${encodeURIComponent(String(count))}&page=${encodeURIComponent(String(page))}&announce_label=${encodeURIComponent(String(label))}`;
+            const res = await fetch(url, { method: 'GET' });
+            if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+            const json = await res.json();
+            // assume worker returns the official pr_info_index shape or already-normalized list
+            if (json && Array.isArray(json.information_list)) {
+                return json.information_list.map((it: any, idx: number) => mapIndexItemToArticle(it, idx));
+            }
+            if (Array.isArray(json)) {
+                // already normalized
+                return json as Article[];
+            }
+            throw new Error('Invalid list payload from worker');
+        }
+
+        // Fallback to official Umamusume API
+        const official = `https://umamusume.jp/api/ajax/pr_info_index?format=json&announce_label=${encodeURIComponent(String(label))}&per_page=${encodeURIComponent(String(count))}&page=${encodeURIComponent(String(page))}`;
+        const res = await fetch(official, { method: 'GET' });
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        const data = await res.json();
+        if (!data || !Array.isArray(data.information_list)) throw new Error('Invalid official list payload');
+        return data.information_list.map((it: any, idx: number) => mapIndexItemToArticle(it, idx));
+    }
+
+    /**
+     * Fetch single article detail. Prefer worker endpoint when configured, fall back to official API.
+     */
+    public async fetchArticle(id: number | string): Promise<Article> {
+        const base = this.getBaseUrl();
+        if (base) {
+            const url = `${base}/api/article?announce_id=${encodeURIComponent(String(id))}`;
+            const res = await fetch(url, { method: 'GET' });
+            if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+            const json = await res.json();
+            if (json && json.detail) return mapDetailToArticle(json.detail);
+            if (json && (json.title || json.message)) return mapDetailToArticle(json as any);
+            throw new Error('Invalid article payload from worker');
+        }
+
+        const official = `https://umamusume.jp/api/ajax/pr_info_detail?format=json&announce_id=${encodeURIComponent(String(id))}`;
+        const res = await fetch(official, { method: 'GET' });
+        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        const data = await res.json();
+        if (!data || !data.detail) throw new Error('Invalid official article payload');
+        return mapDetailToArticle(data.detail);
     }
 
     /**

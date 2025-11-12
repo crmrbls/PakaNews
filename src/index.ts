@@ -164,22 +164,10 @@ async function loadNews(loadMore = false) {
         newsEntries.classList.remove("show");
     }
 
-    let endpoint: string;
-    switch (currentTab) {
-        case Tab.All:
-            endpoint = `https://umapyoi.net/api/v1/news/latest/${POST_COUNT}/${offset}`;
-            break;
-
-        case Tab.Game:
-            endpoint = `https://umapyoi.net/api/v1/news/latest/${POST_COUNT}/${offset}/label/1`;
-            break;
-    }
-
     Loader.show();
     try {
-        const res = await fetch(endpoint);
-        if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-        const data: Article[] = await res.json();
+        // Prefer worker endpoint for list retrieval; fall back to official API if not configured.
+        const data: Article[] = await Translator.fetchList(POST_COUNT, offset, currentTab);
 
         if (!loadMore) {
             newsEntries.innerHTML = "";
