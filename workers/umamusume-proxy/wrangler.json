@@ -1,8 +1,0 @@
-{
-  // Wrangler config (JSONC) for local development of the Umamusume proxy worker.
-  // Replace or add `account_id` when publishing.
-  "name": "umamusume-proxy",
-  "type": "javascript",
-  "main": "worker.js",
-  "compatibility_date": "2025-11-13"
-}

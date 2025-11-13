@@ -11,6 +11,17 @@ node_modules
 dist
 dist-ssr
 *.local
+*.lock
+
+# Development environment variables (contain secrets)
+.env.local
+.env.*.local
+workers/.dev.vars
+workers/.env.*.local
+
+# Wrangler build artifacts
+workers/.wrangler/
+workers/dist/
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +33,23 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# OS files
+Thumbs.db
+.AppleDouble
+.DS_Store
+
+# IDE temp files
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.iml
+*.iws
+.idea/
+
+# Toolbox container files (if using podman/docker)
+.container/
+.toolbox/

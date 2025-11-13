@@ -1,0 +1,19 @@
+# Copy this file to .dev.vars and fill in your credentials
+# Do NOT commit .dev.vars to git - it contains secrets
+
+# Target language for DeepL translations
+# Umamusume official API returns news in Japanese
+# This variable controls what language to translate TO via DeepL
+# Examples: id (Indonesian), ja (Japanese), en (English), etc.
+# Default fallback: ja (Japanese) - if not set, returns original Japanese text
+# List of supported languages: https://www.deepl.com/docs-api/translating-text/
+TARGET_LANGUAGE=id
+
+# DeepL API key
+# Get it from: https://www.deepl.com/account/keys
+# Use api-free endpoint for free tier keys (they contain ":fx" suffix)
+DEEPL_API_KEY=4xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:fx
+
+# Admin secret for cache invalidation
+# Change this to something secure in production!
+ADMIN_SECRET=your-secure-secret-here

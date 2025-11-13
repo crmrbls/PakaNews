@@ -5,11 +5,18 @@ import type { Article } from "./types";
 import DOMPurify from "dompurify";
 import Translator from './translator';
 
-const contentsInner = document.getElementById("contentsInner")!;
-const label = document.getElementById("label")!;
-const postTime = document.getElementById("postTime")!;
-const title = document.getElementById("title")!;
-const message = document.getElementById("message")!;
+// Helper to safely get required DOM elements
+function getRequiredElement(id: string): HTMLElement {
+    const el = document.getElementById(id);
+    if (!el) throw new Error(`Required DOM element #${id} not found. Check HTML structure.`);
+    return el;
+}
+
+const contentsInner = getRequiredElement("contentsInner");
+const label = getRequiredElement("label");
+const postTime = getRequiredElement("postTime");
+const title = getRequiredElement("title");
+const message = getRequiredElement("message");
 
 async function getArticle(): Promise<Article> {
     const idParam = new URLSearchParams(location.search).get("id");
@@ -29,9 +36,6 @@ async function getArticle(): Promise<Article> {
 
 async function init() {
     Unity.call("showBackButton");
-
-    // Clean up mock translations if worker is unreachable (dev convenience)
-    try { await Translator.cleanupMockEntries().catch(()=>{}); } catch(e) {}
 
     const article = await getArticle();
 
@@ -60,7 +64,7 @@ async function init() {
         if (!stored) {
             // attempt on-demand translation via Cloudflare Worker endpoint.
             try {
-                const payload = await Translator.fetchById(article.announce_id, targetLang).catch(()=>null);
+                const payload = await Translator.fetchById(article.announce_id).catch(()=>null);
                 if (payload && (payload.title || payload.message)) {
                     titleText = payload.title || titleText;
                     messageHTML = payload.message || messageHTML;
@@ -100,8 +104,13 @@ async function init() {
 Loader.show();
 init()
 .catch(e => {
-    console.error(e);
-    message.innerText = "Failed to load article: " + e;
+    console.error('Failed to load article:', e);
+    message.innerHTML = DOMPurify.sanitize(`
+        <div style="color: #d9534f; padding: 10px; background: #f2dede; border: 1px solid #ebcccc; border-radius: 4px;">
+            <strong>⚠️ Failed to load article</strong><br>
+            Unable to fetch article details. Please try again or check the console for more information.
+        </div>
+    `);
 })
 .finally(() => {
     contentsInner.classList.add("show");

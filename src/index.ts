@@ -4,9 +4,16 @@ import Loader from "./loader";
 import type { Article } from "./types";
 import Translator from "./translator";
 
-const allTabBtn = document.getElementById("allTabBtn")!;
-const gameTabBtn = document.getElementById("gameTabBtn")!;
-const newsEntries = document.getElementById("newsEntries")!;
+// Helper to safely get required DOM elements
+function getRequiredElement(id: string): HTMLElement {
+    const el = document.getElementById(id);
+    if (!el) throw new Error(`Required DOM element #${id} not found. Check HTML structure.`);
+    return el;
+}
+
+const allTabBtn = getRequiredElement("allTabBtn");
+const gameTabBtn = getRequiredElement("gameTabBtn");
+const newsEntries = getRequiredElement("newsEntries");
 
 enum Tab {
     All,
@@ -130,7 +137,7 @@ function preloadTranslations(articles: Article[], targetLang = 'id') {
             const key = `translation_${article.announce_id}_${targetLang}`;
             const has = ((): boolean => { try { return !!localStorage.getItem(key); } catch(e) { return false; } })();
             if (!has) {
-                Translator.fetchById(article.announce_id, targetLang)
+                Translator.fetchById(article.announce_id)
                 .then((payload: any) => {
                     if (payload && (payload.title || payload.message)) {
                         try { localStorage.setItem(key, JSON.stringify(payload)); } catch(e) { /* quota or disabled */ }
@@ -166,8 +173,22 @@ async function loadNews(loadMore = false) {
 
     Loader.show();
     try {
-        // Prefer worker endpoint for list retrieval; fall back to official API if not configured.
-        const data: Article[] = await Translator.fetchList(POST_COUNT, offset, currentTab);
+        // Prefer worker endpoint for list retrieval; fall back to dev proxy if available.
+        let data: Article[] = [];
+        try {
+            data = await Translator.fetchList(POST_COUNT, offset, currentTab);
+        } catch (e) {
+            console.error('Failed to load list from translator:', e);
+            // Show a friendly error message. Avoid throwing so we don't create
+            // noisy CORS errors in the console when a worker/proxy is not available.
+            newsEntries.innerHTML = '';
+            const errMsg = document.createElement('div');
+            errMsg.className = 'news-entry';
+            errMsg.style.color = '#d9534f';
+            errMsg.innerHTML = `<strong>⚠️ Failed to load news</strong><br>Translation worker or proxy is not available. Please try again later or check the console for details.`;
+            newsEntries.appendChild(errMsg);
+            return;
+        }
 
         if (!loadMore) {
             newsEntries.innerHTML = "";
@@ -233,9 +254,6 @@ function restoreState() {
 }
 
 async function init() {
-    // Clean up any dev/mock translations if the worker is not reachable.
-    try { await Translator.cleanupMockEntries().catch(()=>{}); } catch(e) {}
-
     if (!restoreState()) {
         await loadNews();
         updateTabBtns();
