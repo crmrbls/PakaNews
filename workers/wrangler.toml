@@ -2,7 +2,7 @@ name = "pakanews"
 type = "javascript"
 main = "src/worker.js"
 compatibility_date = "2025-11-09"
-
+account_id = "${CLOUDFLARE_ACCOUNT_ID}"
 # KV namespaces for translation caching
 # The cache key format is: translation_{id}_{language}
 # This allows multiple language variants to coexist in the same KV namespace
