@@ -39,7 +39,7 @@ jobs:
           sed -i "s|\${CLOUDFLARE_ACCOUNT_ID}|${CLOUDFLARE_ACCOUNT_ID}|g" wrangler.toml
 
           echo "🚀 Deploying PakaNews worker..."
-          wrangler deploy --env production
+          wrangler deploy
 
       - name: Notify Deployment
         run: |
