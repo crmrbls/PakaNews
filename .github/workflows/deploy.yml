@@ -45,10 +45,13 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
-
+        run: pnpm install      
+        
       - name: Build
         run: pnpm build
+        env:
+          VITE_TRANSLATOR_WORKER_URL: ${{ secrets.VITE_TRANSLATOR_WORKER_URL }}
+
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
