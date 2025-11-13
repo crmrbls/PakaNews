@@ -34,6 +34,12 @@ jobs:
           wrangler secret put DEEPL_API_KEY --text <<< "${{ secrets.DEEPL_API_KEY }}"
           wrangler secret put ADMIN_SECRET --text <<< "${{ secrets.ADMIN_SECRET }}"
 
+      - name: Set up KV Namespace
+        working-directory: workers
+        run: |
+          echo "Setting up Cloudflare Worker KV Namespace..."
+          wrangler kv:namespace create ${{ secrets.CLOUDFLARE_KV_NAMESPACE }}
+          
       - name: Deploy Worker
         working-directory: workers
         env:

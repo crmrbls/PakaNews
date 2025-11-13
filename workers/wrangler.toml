@@ -8,9 +8,7 @@ account_id = "${CLOUDFLARE_ACCOUNT_ID}"
 # Example keys: translation_2907_id, translation_2907_ja, translation_2907_en
 [[kv_namespaces]]
 binding = "TRANSLATION_KV"
-id = "8387fc78bdde4693865198cfc6e59215"  # PakaNews KV namespace (shared across languages)
-preview_id = "8387fc78bdde4693865198cfc6e59215"
-
+id = "96c4a500dd9141ee8df3bf8874e1b40d"
 # Production environment secrets and variables
 # Secrets are stored in Cloudflare and injected at runtime via GitHub Actions
 # - TARGET_LANGUAGE: DeepL target language code (id, ja, en, etc.) - set via wrangler secret

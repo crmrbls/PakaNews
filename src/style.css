@@ -13,6 +13,7 @@
 @font-face {
     font-family: "FOT-RodinWanpaku Pro";
     src: url("/assets/RodinWanpakuPro-UmaTl.woff2") format("woff2");
+    src: url("/assets/RodinWanpakuPro-UmaTl.otf") format("opentype");
     font-weight: 800;
 }
 
