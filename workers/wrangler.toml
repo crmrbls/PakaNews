@@ -21,7 +21,7 @@ preview_id = "8387fc78bdde4693865198cfc6e59215"
 
 # For local development: create .dev.vars file with:
 # TARGET_LANGUAGE=id
-# DEEPL_API_KEY=451511cc-cd50-436b-9210-954726df55ff:fx
+# DEEPL_API_KEY=451xx1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # ADMIN_SECRET=your-secret-here
 
 # For CI/CD deployment with GitHub Actions or similar:
