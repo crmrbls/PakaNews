@@ -19,15 +19,30 @@ addEventListener('fetch', event => {
 
 const ORIGIN = 'https://umamusume.jp';
 
-function corsHeaders() {
+// Allowed origins for CORS
+// Only allow GitHub Pages domain and localhost for development
+const ALLOWED_ORIGINS = [
+  'https://.github.io',      // GitHub Pages (production)
+  'http://localhost:5173',           // Local dev (Vite default)
+  'http://localhost:3000',           // Alternative local dev
+  'http://127.0.0.1:5173',           // IPv4 localhost
+];
+
+function corsHeaders(origin = '*') {
+  // Check if origin is allowed
+  const isAllowed = ALLOWED_ORIGINS.includes(origin);
+  const allowedOrigin = isAllowed ? origin : 'null';
+  
   return {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',  // 24 hours
+    'Vary': 'Origin'
   };
 }
 
-async function proxyFetch(url) {
+async function proxyFetch(url, requestOrigin = '*') {
   // Add common browser headers to reduce chance the origin blocks the request.
   // Some sites return 403 when requests look like automated bots or lack a Referer.
   const res = await fetch(url, {
@@ -41,16 +56,19 @@ async function proxyFetch(url) {
   const text = await res.text();
   return new Response(text, {
     status: res.status,
-    headers: Object.assign({'Content-Type': res.headers.get('content-type') || 'application/json'}, corsHeaders())
+    headers: Object.assign({'Content-Type': res.headers.get('content-type') || 'application/json'}, corsHeaders(requestOrigin))
   });
 }
 
 async function handleRequest(request) {
   const url = new URL(request.url);
+  
+  // Extract origin from request header
+  const requestOrigin = request.headers.get('Origin') || '*';
 
   // Handle CORS preflight
   if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders() });
+    return new Response(null, { status: 204, headers: corsHeaders(requestOrigin) });
   }
 
   try {
@@ -59,14 +77,14 @@ async function handleRequest(request) {
       const page = url.searchParams.get('page') || '1';
       const announce_label = url.searchParams.get('announce_label') || '0';
       const target = `${ORIGIN}/api/ajax/pr_info_index?format=json&per_page=${encodeURIComponent(per_page)}&page=${encodeURIComponent(page)}&announce_label=${encodeURIComponent(announce_label)}`;
-      return await proxyFetch(target);
+      return await proxyFetch(target, requestOrigin);
     }
 
     if (url.pathname === '/api/article') {
       const announce_id = url.searchParams.get('announce_id');
-      if (!announce_id) return new Response(JSON.stringify({ error: 'missing announce_id' }), { status: 400, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders()) });
+      if (!announce_id) return new Response(JSON.stringify({ error: 'missing announce_id' }), { status: 400, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders(requestOrigin)) });
       const target = `${ORIGIN}/api/ajax/pr_info_detail?format=json&announce_id=${encodeURIComponent(announce_id)}`;
-      return await proxyFetch(target);
+      return await proxyFetch(target, requestOrigin);
     }
 
     if (url.pathname === '/api/translate') {
@@ -79,7 +97,7 @@ async function handleRequest(request) {
   if (requestedLang && String(requestedLang).toUpperCase() !== targetLanguage) {
         console.warn(`Ignored client-specified lang='${requestedLang}'. Worker enforces '${targetLanguage}'.`);
       }
-      if (!id) return new Response(JSON.stringify({ error: 'missing id' }), { status: 400, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders()) });
+      if (!id) return new Response(JSON.stringify({ error: 'missing id' }), { status: 400, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders(requestOrigin)) });
 
       // CACHING + TRANSLATION FLOW
       // 1) Try KV cache (TRANSLATION_KV) if bound (skip if ?nocache=1)
@@ -90,7 +108,7 @@ async function handleRequest(request) {
   const nocache = url.searchParams.get('nocache') === '1';
 
       // helper: build JSON response
-      const makeResp = (obj) => new Response(JSON.stringify(obj), { status: 200, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders()) });
+      const makeResp = (obj) => new Response(JSON.stringify(obj), { status: 200, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders(requestOrigin)) });
 
       // 1) Try KV cache (if available, unless ?nocache=1)
       if (!nocache) {
@@ -123,7 +141,7 @@ async function handleRequest(request) {
         let bodyText = '';
         try { bodyText = (await r.text()).slice(0, 2000); } catch (e) { bodyText = ''; }
         const payload = { error: 'failed to fetch article', origin_status: r.status, origin_statusText: r.statusText, origin_body_snippet: bodyText };
-        return new Response(JSON.stringify(payload), { status: 502, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders()) });
+        return new Response(JSON.stringify(payload), { status: 502, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders(requestOrigin)) });
       }
       const json = await r.json();
       const detail = json && json.detail ? json.detail : json;
@@ -215,7 +233,7 @@ async function handleRequest(request) {
 
     // Health
     if (url.pathname === '/' || url.pathname === '/health') {
-      return new Response('ok', { status: 200, headers: corsHeaders() });
+      return new Response('ok', { status: 200, headers: corsHeaders(requestOrigin) });
     }
 
     // Admin: invalidate translation cache
@@ -223,25 +241,25 @@ async function handleRequest(request) {
     if (url.pathname === '/api/admin/invalidate') {
       // Require ADMIN_SECRET to be configured
       if (typeof ADMIN_SECRET === 'undefined' || !ADMIN_SECRET) {
-        return new Response(JSON.stringify({ ok: false, error: 'ADMIN_SECRET_NOT_CONFIGURED' }), { status: 403, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders()) });
+        return new Response(JSON.stringify({ ok: false, error: 'ADMIN_SECRET_NOT_CONFIGURED' }), { status: 403, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders(requestOrigin)) });
       }
 
       const provided = request.headers.get('x-admin-secret') || url.searchParams.get('secret');
       if (!provided || provided !== ADMIN_SECRET) {
-        return new Response(JSON.stringify({ ok: false, error: 'INVALID_ADMIN_SECRET' }), { status: 403, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders()) });
+        return new Response(JSON.stringify({ ok: false, error: 'INVALID_ADMIN_SECRET' }), { status: 403, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders(requestOrigin)) });
       }
 
       // Accept single id or comma-separated ids
       const idsParam = url.searchParams.get('ids') || url.searchParams.get('id');
       if (!idsParam) {
-        return new Response(JSON.stringify({ ok: false, error: 'missing id(s)' }), { status: 400, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders()) });
+        return new Response(JSON.stringify({ ok: false, error: 'missing id(s)' }), { status: 400, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders(requestOrigin)) });
       }
 
       const ids = idsParam.split(',').map(s => s.trim()).filter(Boolean);
       const results = {};
 
       if (typeof TRANSLATION_KV === 'undefined' || !TRANSLATION_KV) {
-        return new Response(JSON.stringify({ ok: false, error: 'TRANSLATION_KV_NOT_CONFIGURED' }), { status: 501, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders()) });
+        return new Response(JSON.stringify({ ok: false, error: 'TRANSLATION_KV_NOT_CONFIGURED' }), { status: 501, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders(requestOrigin)) });
       }
 
       // Get target language for cache key matching (default to 'ja' - Umamusume API is in Japanese)
@@ -257,11 +275,11 @@ async function handleRequest(request) {
         }
       }
 
-      return new Response(JSON.stringify({ ok: true, results }), { status: 200, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders()) });
+      return new Response(JSON.stringify({ ok: true, results }), { status: 200, headers: Object.assign({'Content-Type':'application/json'}, corsHeaders(requestOrigin)) });
     }
 
-    return new Response('not found', { status: 404, headers: corsHeaders() });
+    return new Response('not found', { status: 404, headers: corsHeaders(requestOrigin) });
   } catch (err) {
-    return new Response(String(err || 'error'), { status: 500, headers: corsHeaders() });
+    return new Response(String(err || 'error'), { status: 500, headers: corsHeaders(requestOrigin) });
   }
 }

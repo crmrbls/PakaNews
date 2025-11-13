@@ -11,22 +11,22 @@ binding = "TRANSLATION_KV"
 id = "8387fc78bdde4693865198cfc6e59215"  # PakaNews KV namespace (shared across languages)
 preview_id = "8387fc78bdde4693865198cfc6e59215"
 
-# Configuration for local development
-# Environment variables control translation behavior:
-# - TARGET_LANGUAGE: DeepL target language code (id, ja, en, etc.)
-#                     Fallback is 'ja' (Japanese) since Umamusume API is in Japanese
-# - DEEPL_API_KEY: DeepL API key for translations
-# - ADMIN_SECRET: Secret for /api/admin/invalidate endpoint
+# Production environment secrets and variables
+# Secrets are stored in Cloudflare and injected at runtime via GitHub Actions
+# - TARGET_LANGUAGE: DeepL target language code (id, ja, en, etc.) - set via wrangler secret
+# - DEEPL_API_KEY: DeepL API key for translations - set via wrangler secret
+# - ADMIN_SECRET: Secret for /api/admin/invalidate endpoint - set via wrangler secret
+#
+# These are injected automatically by the worker runtime - no need to define here explicitly
+# But documented for clarity
 
-# For local development: create .dev.vars file with:
+# For local development
+# Create .dev.vars file with:
 # TARGET_LANGUAGE=id
 # DEEPL_API_KEY=451xx1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # ADMIN_SECRET=your-secret-here
-
-# For CI/CD deployment with GitHub Actions or similar:
-# Export environment variables before deployment:
-#   export TARGET_LANGUAGE=id
-#   export DEEPL_API_KEY=your-production-key
-#   export ADMIN_SECRET=your-production-secret
-#   wrangler deploy
+#
+# For CI/CD deployment via GitHub Actions:
+# Secrets are set using: wrangler secret put <name> --text <<< "<value>"
+# See .github/workflows/deploy-worker.yml for details
 
