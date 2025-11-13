@@ -1,4 +1,4 @@
-name: Deploy PakaNews Worker (Indonesian)
+name: Deploy PakaNews Translation Worker
 
 on:
   push:
