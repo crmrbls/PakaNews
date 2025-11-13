@@ -1,5 +1,5 @@
 # PakaNews
-Replica of the mobile news page. Powered by [umapyoi.net](https://umapyoi.net)'s API.
+Replica of the mobile news page. 
 
 # Building
 *The recommended package manager for this project is pnpm. These instructions assume that you're using it.*
