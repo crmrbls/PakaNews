@@ -16,6 +16,7 @@ dist-ssr
 # Development environment variables (contain secrets)
 .env.local
 .env.*.local
+!.env.*.template
 workers/.dev.vars
 workers/.env.*.local
 

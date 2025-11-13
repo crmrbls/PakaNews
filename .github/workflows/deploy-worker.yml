@@ -37,4 +37,4 @@ jobs:
       - name: Notify Deployment
         run: |
           echo "✅ Worker deployed successfully"
-          echo "Cache key format: translation_{id}_id"
+          echo "Cache key format: translation_{id}_{language}"
