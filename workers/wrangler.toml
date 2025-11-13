@@ -1,5 +1,4 @@
 name = "pakanews"
-type = "javascript"
 main = "src/worker.js"
 compatibility_date = "2025-11-09"
 account_id = "${CLOUDFLARE_ACCOUNT_ID}"
