@@ -14,6 +14,7 @@
     font-family: "FOT-RodinWanpaku Pro";
     src: url("/assets/RodinWanpakuPro-UmaTl.woff2") format("woff2");
     src: url("/assets/RodinWanpakuPro-UmaTl.otf") format("opentype");
+    src: url("/assets/RodinWanpakuPro-UmaTl.ttf") format("truetype");
     font-weight: 800;
 }
 
