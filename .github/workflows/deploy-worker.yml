@@ -2,7 +2,7 @@ name: Deploy PakaNews Translation Worker
 
 on:
   push:
-    branches: [main]
+    branches: [feat/umamusume-official-api]
     paths:
       - 'workers/**'
   workflow_dispatch:

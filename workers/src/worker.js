@@ -22,7 +22,7 @@ const ORIGIN = 'https://umamusume.jp';
 // Allowed origins for CORS
 // Only allow GitHub Pages domain and localhost for development
 const ALLOWED_ORIGINS = [
-  'https://crmrbls.github.io',      // GitHub Pages (production)
+  'https://ggktm.github.io',      // GitHub Pages (production)
   'http://localhost:5173',           // Local dev (Vite default)
   'http://localhost:3000',           // Alternative local dev
   'http://127.0.0.1:5173',           // IPv4 localhost
